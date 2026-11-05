@@ -5,12 +5,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
       - name: Unpack project
         run: unzip -q FOMC_android.zip
+
+      - name: Pin python-for-android and NDK
+        run: |
+          sed -i -e '/^\[app\]/a p4a.branch = v2024.01.21' -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
+          cat FOMC_android/buildozer.spec
 
       - uses: actions/setup-java@v4
         with:
