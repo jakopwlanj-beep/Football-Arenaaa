@@ -15,7 +15,6 @@ jobs:
       - name: Pin python-for-android and NDK
         run: |
           sed -i -e '/^\[app\]/a p4a.branch = v2024.01.21' -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
-          cat FOMC_android/buildozer.spec
 
       - uses: actions/setup-java@v4
         with:
@@ -36,9 +35,15 @@ jobs:
       - name: Install Buildozer
         run: pip install buildozer "cython<3" setuptools wheel
 
-      - name: Build APK
+      - name: Build APK (with retries)
         working-directory: FOMC_android
-        run: buildozer -v android debug
+        run: |
+          for i in 1 2 3; do
+            buildozer -v android debug && exit 0
+            echo "Attempt $i failed, retrying in 30s..."
+            sleep 30
+          done
+          exit 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
