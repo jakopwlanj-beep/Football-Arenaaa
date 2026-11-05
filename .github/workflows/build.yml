@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +40,7 @@ jobs:
       - name: Build APK (with retries)
         working-directory: FOMC_android
         run: |
-          for i in 1 2 3; do
+          for i in 1 2; do
             buildozer -v android debug && exit 0
             echo "Attempt $i failed, retrying in 30s..."
             sleep 30
