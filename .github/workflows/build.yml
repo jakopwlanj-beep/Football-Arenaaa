@@ -5,17 +5,36 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
       - name: Unpack project
         run: unzip -q FOMC_android.zip
-      - name: Build with Buildozer
-        uses: ArtemSBulgakov/buildozer-action@v1
-        id: buildozer
+
+      - uses: actions/setup-java@v4
         with:
-          workdir: FOMC_android
-          command: buildozer android debug
-          buildozer_version: stable
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip autoconf automake libtool \
+            pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev \
+            build-essential ccache libltdl-dev
+
+      - name: Install Buildozer
+        run: pip install buildozer "cython<3" setuptools wheel
+
+      - name: Build APK
+        working-directory: FOMC_android
+        run: buildozer -v android debug
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
