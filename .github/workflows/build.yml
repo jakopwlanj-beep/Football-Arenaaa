@@ -17,9 +17,8 @@ jobs:
           git clone --branch v2024.01.21 --depth 1 https://github.com/kivy/python-for-android.git "$HOME/p4a"
           grep -rl "'Unix Makefiles'" "$HOME/p4a/pythonforandroid" | xargs -r sed -i "s/'-G', 'Unix Makefiles',/'-G', 'Unix Makefiles', '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',/"
           grep -rl "'CMakeFiles/'" "$HOME/p4a/pythonforandroid" | xargs -r sed -i "s/'-f', 'CMakeCache.txt', 'CMakeFiles\/'/'-rf', 'CMakeCache.txt', 'CMakeFiles\/'/"
-          echo "Patched lines:"
-          grep -rn "CMAKE_POLICY_VERSION_MINIMUM\|'-rf', 'CMakeCache" "$HOME/p4a/pythonforandroid" | head
           sed -i -e "/^\[app\]/a p4a.source_dir = $HOME/p4a" -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
+          sed -i 's/^requirements = .*/requirements = python3==3.10.12,hostpython3==3.10.12,pygame/' FOMC_android/buildozer.spec
           cat FOMC_android/buildozer.spec
 
       - uses: actions/setup-java@v4
