@@ -12,9 +12,15 @@ jobs:
       - name: Unpack project
         run: unzip -q FOMC_android.zip
 
-      - name: Pin python-for-android and NDK
+      - name: Prepare patched python-for-android
         run: |
-          sed -i -e '/^\[app\]/a p4a.branch = v2024.01.21' -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
+          git clone --branch v2024.01.21 --depth 1 https://github.com/kivy/python-for-android.git "$HOME/p4a"
+          grep -rl "'Unix Makefiles'" "$HOME/p4a/pythonforandroid" | xargs -r sed -i "s/'-G', 'Unix Makefiles',/'-G', 'Unix Makefiles', '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',/"
+          grep -rl "'CMakeFiles/'" "$HOME/p4a/pythonforandroid" | xargs -r sed -i "s/'-f', 'CMakeCache.txt', 'CMakeFiles\/'/'-rf', 'CMakeCache.txt', 'CMakeFiles\/'/"
+          echo "Patched lines:"
+          grep -rn "CMAKE_POLICY_VERSION_MINIMUM\|'-rf', 'CMakeCache" "$HOME/p4a/pythonforandroid" | head
+          sed -i -e "/^\[app\]/a p4a.source_dir = $HOME/p4a" -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
+          cat FOMC_android/buildozer.spec
 
       - uses: actions/setup-java@v4
         with:
@@ -35,16 +41,10 @@ jobs:
       - name: Install Buildozer
         run: pip install buildozer "cython<3" setuptools wheel
 
-      - name: Build APK (with retries and CMake patch)
+      - name: Build APK (with retries)
         working-directory: FOMC_android
         run: |
           for i in 1 2 3; do
-            P4A=.buildozer/android/platform/python-for-android/pythonforandroid
-            if [ -d "$P4A" ]; then
-              grep -rl "'Unix Makefiles'" "$P4A" | xargs -r sed -i "/CMAKE_POLICY_VERSION_MINIMUM/!s/'-G', 'Unix Makefiles',/'-G', 'Unix Makefiles', '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',/"
-              echo "Patched recipes:"
-              grep -rn "CMAKE_POLICY_VERSION_MINIMUM" "$P4A" | head
-            fi
             buildozer -v android debug && exit 0
             echo "Attempt $i failed, retrying in 30s..."
             sleep 30
