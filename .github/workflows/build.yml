@@ -6,8 +6,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    env:
-      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
     steps:
       - uses: actions/checkout@v4
 
@@ -37,10 +35,16 @@ jobs:
       - name: Install Buildozer
         run: pip install buildozer "cython<3" setuptools wheel
 
-      - name: Build APK (with retries)
+      - name: Build APK (with retries and CMake patch)
         working-directory: FOMC_android
         run: |
-          for i in 1 2; do
+          for i in 1 2 3; do
+            P4A=.buildozer/android/platform/python-for-android/pythonforandroid
+            if [ -d "$P4A" ]; then
+              grep -rl "'Unix Makefiles'" "$P4A" | xargs -r sed -i "/CMAKE_POLICY_VERSION_MINIMUM/!s/'-G', 'Unix Makefiles',/'-G', 'Unix Makefiles', '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',/"
+              echo "Patched recipes:"
+              grep -rn "CMAKE_POLICY_VERSION_MINIMUM" "$P4A" | head
+            fi
             buildozer -v android debug && exit 0
             echo "Attempt $i failed, retrying in 30s..."
             sleep 30
