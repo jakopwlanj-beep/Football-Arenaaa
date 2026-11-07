@@ -10,10 +10,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Unpack project
-        run: |
-          unzip -q FOMC_android.zip
-          mkdir -p ~/.android
-          cp FOMC_android/debug.keystore ~/.android/debug.keystore
+        run: unzip -q FOMC_android.zip
 
       - name: Prepare patched python-for-android
         run: |
@@ -22,6 +19,7 @@ jobs:
           grep -rl "'CMakeFiles/'" "$HOME/p4a/pythonforandroid" | xargs -r sed -i "s/'-f', 'CMakeCache.txt', 'CMakeFiles\/'/'-rf', 'CMakeCache.txt', 'CMakeFiles\/'/"
           sed -i -e "/^\[app\]/a p4a.source_dir = $HOME/p4a" -e '/^\[app\]/a android.ndk = 25b' FOMC_android/buildozer.spec
           sed -i 's/^requirements = .*/requirements = python3==3.10.12,hostpython3==3.10.12,pygame/' FOMC_android/buildozer.spec
+          sed -i "/^\[app\]/a android.numeric_version = $((100000000 + ${{ github.run_number }}))" FOMC_android/buildozer.spec
           cat FOMC_android/buildozer.spec
 
       - uses: actions/setup-java@v4
@@ -53,16 +51,19 @@ jobs:
           done
           exit 1
 
-      - name: Show signing key fingerprints
+      - name: Re-sign APK with our fixed key
         run: |
           APKSIGNER=$(find "$HOME/.buildozer" -name apksigner 2>/dev/null | head -1)
+          mkdir -p signed
+          for f in FOMC_android/bin/*.apk; do
+            "$APKSIGNER" sign --ks FOMC_android/debug.keystore --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out "signed/$(basename "$f")" "$f"
+          done
           echo "APK signed with:"
-          "$APKSIGNER" verify --print-certs FOMC_android/bin/*.apk | grep -i "SHA-256" || true
-          echo "Our keystore:"
-          keytool -list -keystore FOMC_android/debug.keystore -storepass android | grep -i "SHA-256" || true
+          "$APKSIGNER" verify --print-certs signed/*.apk | grep -i "SHA-256"
+          echo "Expected: 3474dbb84ebe1ee1d5eb891a7f5f3542c9e43776829d74ce01383c4f6945e41c"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FootballArena-apk
-          path: FOMC_android/bin/*.apk
+          path: signed/*.apk
